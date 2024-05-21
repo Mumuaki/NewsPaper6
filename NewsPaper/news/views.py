@@ -102,9 +102,9 @@ class NewsFilter(FilterView):
         return super().dispatch(request, *args, **kwargs)
 
 
-class NewsCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
+class NewsCreateView(CreateView):
     raise_exception = True
-    permission_required = ('news.post_add',)
+    # permission_required = ('news.post_add',)
     model = Post
     fields = ['title', 'content', 'categories', 'post_type', 'post_author']
     template_name = 'news_create.html'

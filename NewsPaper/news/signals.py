@@ -6,7 +6,7 @@ from django.dispatch import receiver
 from django.template.loader import render_to_string
 
 from .models import *
-from ..NewsPaper import settings
+from django.conf import settings
 
 
 def send_notification(preview, pk, title, subscribers_emails):
@@ -32,13 +32,13 @@ def news_created(instance, created, **kwargs):
         return
 
     emails = User.objects.filter(
-        subscriptions__category=instance.category
+        subscriptions__category=instance.categories
     ).values_list('email', flat=True)
 
-    subject = f'Новая заметка в категории {instance.category}'
+    subject = f'Новая заметка в категории {instance.categories}'
 
     text_content = (
-        f'Новость: {instance.name}\n'
+        f'Новость: {instance.post}\n'
         f'Тема: {instance.title}\n\n'
         f'Содержание: {instance.content}\n\n\n'
         f'Ссылка на новость: http://127.0.0.1:8000{instance.get_absolute_url()}'
@@ -55,16 +55,51 @@ def news_created(instance, created, **kwargs):
         msg.send()
 
 
-@receiver(m2m_changed, sender=PostCategory.through)
-def notify_about_new_post(sender, instance, action, **kwargs):
-    print('**************')
-    print(f'post_created called with action:{action}')
-    print('**************')
-    # if kwargs['action'] == 'post_add':
-    #     categories = instance.postCategory.all()
-    #     subscribers_emails = []
-    #     for cat in categories:
-    #         subscribers = Subscription.objects.filter(category=cat)
-    #         subscribers_emails += [subs.user.email for subs in subscribers]
-    #
-    # send_notification(instance.preview(), instance.pk, instance.title, subscribers_emails)
+# @receiver(m2m_changed, sender=Post.categories.through)
+# def notify_about_new_post(sender, instance, action, **kwargs):
+#     print('**************')
+#     print(f' post_created called with action:{action}')
+#     print('**************')
+#     # if kwargs['action'] == 'post_add':
+#     #     categories = instance.postCategory.all()
+#     #     subscribers_emails = []
+#     #     for cat in categories:
+#     #         subscribers = Subscription.objects.filter(category=cat)
+#     #         subscribers_emails += [subs.user.email for subs in subscribers]
+#     #
+#     # send_notification(instance.preview(), instance.pk, instance.title, subscribers_emails)
+
+@receiver(m2m_changed, sender=PostCategory)
+def notify_about_new_post(instance, **kwargs):
+    # print('**************')
+    # print(f'post_created called with action:{action}')
+    # print('**************')
+    if kwargs['action'] == 'post_add':
+        emails = User.objects.filter(
+            subscriptions__category__in=instance.postCategory.all()
+        ).values_list('email', flat=True)
+
+        subject = f'Новая заметка в категории {instance.categories}'
+
+        text_content = (
+            f'Тема: {instance.title}\n'
+            f'Содержание: {instance.content}\n\n'
+            f'Ссылка на новость: http://127.0.0.1:8000{instance.get_absolute_url()}'
+        )
+        html_content = (
+            f'Тема: {instance.title}<br>'
+            f'<a href="http://127.0.0.1{instance.get_absolute_url()}">'
+            f'Ссылка на заметку</a>'
+        )
+        for email in emails:
+            msg = EmailMultiAlternatives(subject, text_content, None, [email])
+            msg.attach_alternative(html_content, "text/html")
+            msg.send()
+
+        # for cat in categories:
+        #     subscribers = Subscription.objects.filter(category=cat)
+        #     subscribers_emails += [subs.user.email for subs in subscribers]
+
+            # send_notification(instance.preview(), instance.pk, instance.title, subscribers_emails)
+
+
